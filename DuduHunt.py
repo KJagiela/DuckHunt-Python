@@ -124,6 +124,7 @@ class Game:
         if self.duck.alive:
             self._display_surf.blit(self.duck.image, self.duck.rect)
         self._display_surf.blit(self.crosshair.image, self.crosshair.rect)
+        self._display_surf.blit(self.duck.image, self.duck.rect)
         pygame.display.update()
 
     def on_cleanup(self):
