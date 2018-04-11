@@ -6,11 +6,12 @@ import pygame
 
 
 class Image(pygame.sprite.Sprite):
-    def __init__(self, image_file, left=0, top=0, scale=None):
+    def __init__(self, image_files, left=0, top=0, scale=None):
         super().__init__()
-        self.image = pygame.image.load(image_file)
+        self.images = [pygame.image.load(image_file) for image_file in image_files]
+        self.image = self.images[0]
         if scale:
-            self.image = pygame.transform.scale(self.image, scale)
+            self.images = [pygame.transform.scale(image, scale) for image in self.images]
         self.rect = self.image.get_rect()
         self.rect.left = left
         self.rect.top = top
@@ -18,7 +19,7 @@ class Image(pygame.sprite.Sprite):
 
 class Cursor(Image):
     def __init__(self):
-        super().__init__('Sprites/cursor.png', left=500, top=350)  # TODO
+        super().__init__(['Sprites/cursor.png'], left=500, top=350)  # TODO
         # Load gunshot sound
         self.gunShotSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'shot.wav'))
         # Hide mouse
@@ -33,13 +34,11 @@ class Cursor(Image):
     def on_click(self):
         self.gunShotSound.play()
 
-        self.update()
-
 
 class Dog(Image):
     def __init__(self, subround):
         # TODO: różne pieski
-        super().__init__('Sprites/dog.PNG', left=500, top=350)
+        super().__init__(['Sprites/dog.PNG'], left=500, top=350)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
         self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
         self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
@@ -64,7 +63,7 @@ class Duck(Image):
                  }
         # Point Values Based On Duck Color
         point_values = {"blue": 1000, "red": 1500, "black": 500}  # TODO zależnie od levelu się zmienia
-        super().__init__('Sprites/{}/duck1.png'.format(ducks[duck_type]), left=250, top=300, scale=(54, 57))
+        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=(54, 57))
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
         self.velocity = 1
         self.alive = True
@@ -157,8 +156,8 @@ class Subround:
 
 
 class Round:
-    ROUNDS = 10
-    MIN_SUCCESS_COUNT = 5  # TODO: minimalna liczba kaczek do zastrzelenia ma rosnąć wraz z rundą
+    ROUNDS = 2
+    MIN_SUCCESS_COUNT = 0  # TODO: minimalna liczba kaczek do zastrzelenia ma rosnąć wraz z rundą
 
     def __init__(self, display, background):
         self._display_surf = display
@@ -169,7 +168,17 @@ class Round:
         for i in range(self.ROUNDS):
             subround = Subround(display=self._display_surf, background=self.background)
             ducks_shot += subround.on_execute()
-        return ducks_shot >= self.MIN_SUCCESS_COUNT
+        return self.end_round(ducks_shot >= self.MIN_SUCCESS_COUNT)
+
+    def end_round(self, is_win):
+        pygame.font.init()
+        myfont = pygame.font.SysFont('Comic Sans MS', 50)
+        text = 'Round won!' if is_win else 'Round lost!'
+        textsurface = myfont.render(text, False, (0, 0, 0))
+        self._display_surf.blit(textsurface, (100, 100))
+        pygame.display.update()
+        time.sleep(1)
+        return is_win
 
 
 class Game:
@@ -183,11 +192,13 @@ class Game:
         pygame.init()
         self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         pygame.display.set_caption('Dudu Hunt')
-        self.background = Image('Sprites/background.png')
+        self.background = Image(['Sprites/background.png'])
         return True
 
     @staticmethod
     def cleanup():
+        # TODO display game over
+        # TODO go to start screen?
         pygame.quit()
 
     def execute(self):
