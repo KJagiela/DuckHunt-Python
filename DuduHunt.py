@@ -46,10 +46,13 @@ class Dog(Image):
         self.subround = subround
 
     def celebration(self, cel_type):
+        self.subround._display_surf.blit(self.subround.background.image, (0, 0))
         if cel_type == 'win':
             self.dogWinSound.play()
+            self.subround._display_surf.blit(self.image, self.rect)
         elif cel_type == 'loss':
-            self.dogLoseSound.play()
+            self.subround._display_surf.blit(self.image, self.rect)
+        pygame.display.update()
 
 
 class Duck(Image):
@@ -131,7 +134,6 @@ class Subround:
         pygame.display.update()
 
     def on_cleanup(self):
-        time.sleep(1)
         pass
 
     def on_execute(self):
@@ -150,10 +152,7 @@ class Subround:
         # elif self.countdown == 0:
         # elif self.duck_count == 0:
         self.dog.celebration(type)
-        # self._display_surf.blit(self.dog.image, self.dog.rect)
-        # pygame.display.update()
-        self._display_surf.blit(self.background.image, (0, 0))
-        pygame.display.update()
+        time.sleep(2)
         self._running = False
 
 
