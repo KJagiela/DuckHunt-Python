@@ -41,8 +41,8 @@ class Dog(Image):
         # TODO: różne pieski
         super().__init__('Sprites/dog.PNG', left=500, top=350)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
-        self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
-        self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
+        self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
+        self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
         self.subround = subround
 
     def celebration(self, cel_type):
@@ -113,6 +113,9 @@ class Subround:
             if self.shots_left == 0 and self.duck_count > 0:
                 self.subround_end('loss')
             self.duck.on_click()
+            if not self.duck.alive:
+                self.ducks_shot += 1
+                self.subround_end('win')
         if event.type == pygame.MOUSEMOTION:
             self.crosshair.update()
 
