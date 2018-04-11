@@ -1,13 +1,14 @@
 import os
-from time import sleep
 
 import pygame
 
 
 class Image(pygame.sprite.Sprite):
-    def __init__(self, image_file, left=0, top=0):
+    def __init__(self, image_file, left=0, top=0, scale=None):
         super().__init__()
         self.image = pygame.image.load(image_file)
+        if scale:
+            self.image = pygame.transform.scale(self.image, scale)
         self.rect = self.image.get_rect()
         self.rect.left = left
         self.rect.top = top
@@ -27,7 +28,7 @@ class Cursor(Image):
         self.rect.left = mouse_x - self.rect.size[0] / 2
         self.rect.top = mouse_y - self.rect.size[1] / 2
 
-    def tick(self):
+    def on_click(self):
         # Play Gunshot Sound and add Total Sounds
         Cursor.clicked = True
         self.gunShotSound.play()
@@ -61,11 +62,17 @@ class Duck(Image):
                  }
         # Point Values Based On Duck Color
         point_values = {"blue": 25, "red": 50, "black": 75}
-        super().__init__('Sprites/{}/duck1.png'.format(ducks[duck_type]), left=200, top=300)
-        corner = self.image.get_at((0, 0))
-        self.image.set_colorkey(corner, pygame.constants.RLEACCEL)
-        self.image = pygame.transform.scale(self.image, (72, 76))
+        super().__init__('Sprites/{}/duck1.png'.format(ducks[duck_type]), left=200, top=300, scale=(54, 57))
+        self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
+        self.velocity = 1
+        self.alive = True
 
+    def update(self):
+        self.rect.left += self.velocity
+
+    def on_click(self):
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
+            self.alive = False
 
 class Game:
     paused = False
@@ -99,19 +106,22 @@ class Game:
         if event.type == pygame.QUIT:
             self._running = False
         if event.type == pygame.MOUSEBUTTONUP:
-            self.crosshair.tick()
             self.shots_left -= 1
             if self.shots_left == 0 and self.duck_count > 0:
                 self.subround_end('loss')
                 self._running = False
+            self.duck.on_click()
         if event.type == pygame.MOUSEMOTION:
             self.crosshair.update()
 
     def on_loop(self):
-        pass
+        self.crosshair.update()
+        self.duck.update()
 
     def on_render(self):
         self._display_surf.blit(self.background.image, (0, 0))
+        if self.duck.alive:
+            self._display_surf.blit(self.duck.image, self.duck.rect)
         self._display_surf.blit(self.crosshair.image, self.crosshair.rect)
         self._display_surf.blit(self.duck.image, self.duck.rect)
         pygame.display.update()
