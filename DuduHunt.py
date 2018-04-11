@@ -74,7 +74,6 @@ class Duck(Image):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
             self.alive = False
 
-
 class Game:
     paused = False
     over = False
@@ -128,7 +127,7 @@ class Game:
         pygame.display.update()
 
     def on_cleanup(self):
-        pygame.quit()
+            pygame.quit()
 
     def on_execute(self):
         if not self.on_init():
