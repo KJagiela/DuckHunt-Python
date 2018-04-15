@@ -5,6 +5,11 @@ import time
 import pygame
 
 
+class Settings:
+    change_time = 1
+    change_randomized = 0.2
+
+
 class Image(pygame.sprite.Sprite):
     def __init__(self, image_files, left=0, top=0, scale=None):
         super().__init__()
@@ -63,7 +68,8 @@ class Duck(Image):
                  }
         # Point Values Based On Duck Color
         point_values = {"blue": 1000, "red": 1500, "black": 500}  # TODO zależnie od levelu się zmienia
-        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=(54, 57))
+        self.scale = (54, 57)
+        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=self.scale)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
         self.velocity = 1
         self.alive = True
@@ -71,15 +77,30 @@ class Duck(Image):
         self.last_change_time = time.time()
         self.playground = playground
 
+    def change_direction(self):
+        direction_x = random.choice([-1, 1])
+        direction_y = random.choice([-1, 0, 1])
+        change_time = time.time() - self.last_change_time
+        if not self.playground.contains(self.rect):
+            if self.rect.left <= self.playground.left:
+                direction_x = 1
+            elif self.rect.right >= self.playground.right:
+                direction_x = -1
+            if self.rect.top <= self.playground.top:
+                direction_y = random.choice([0, 1])
+            elif self.rect.bottom >= self.playground.bottom:
+                direction_y = random.choice([-1, 0])
+        elif change_time > Settings.change_time and random.random() < Settings.change_randomized:
+            self.last_change_time = time.time()
+        else:
+            return
+        self.direction = (direction_x, direction_y)
+
     def update(self):
         self.rect.left += self.velocity * self.direction[0]  # TODO zależne od lvl
         self.rect.top += self.velocity * self.direction[1]  # TODO zależne od lvl
-        change_time = time.time() - self.last_change_time
-        can_change_direction = (change_time > 1 and random.random() < 0.1)  # TODO nie hardkoduj tego
-        can_change_direction = can_change_direction or not self.playground.contains(self.rect)  # TODO jak jesteś przy krawędzi, to wywal ją z losowania
-        if can_change_direction:
-            self.direction = (random.choice([-1, 1]), random.choice([-1, 0, 1]))
-            self.last_change_time = time.time()
+
+        self.change_direction()
 
     def on_click(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
