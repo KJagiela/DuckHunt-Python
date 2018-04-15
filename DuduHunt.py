@@ -71,7 +71,9 @@ class Duck(Image):
         super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=self.scale)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
         self.velocity = 1
+        self.velocity_dead = 5
         self.alive = True
+        self.duck_gone = False
         self.direction = (1, 0)
         self.last_change_time = time.time()
 
@@ -95,10 +97,20 @@ class Duck(Image):
         self.direction = (direction_x, direction_y)
 
     def update(self):
+        if self.alive:
+            self.update_alive()
+        else:
+            self.update_dead()
+
+    def update_alive(self):
         self.rect.left += self.velocity * self.direction[0]  # TODO zależne od lvl
         self.rect.top += self.velocity * self.direction[1]  # TODO zależne od lvl
-
         self.change_direction()
+
+    def update_dead(self):
+        self.rect.top += self.velocity_dead
+        if self.rect.bottom >= Subround.playground.bottom:
+            self.duck_gone = True
 
     def on_click(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
@@ -132,21 +144,21 @@ class Subround:
             if self.shots_left == 0 and self.duck_count > 0:
                 self.subround_end('loss')
             self.duck.on_click()
-            if not self.duck.alive:
-                self.ducks_shot += 1
-                self.subround_end('win')
         if event.type == pygame.MOUSEMOTION:
             self.crosshair.update()
 
     def on_loop(self):
         self.crosshair.update()
         self.duck.update()
+        if self.duck.duck_gone:
+            self.ducks_shot += 1
+            self.subround_end('win')
 
     def on_render(self):
         Game.display_surf.blit(Game.background.image, (0, 0))
+        Game.display_surf.blit(self.duck.image, self.duck.rect)
         if self.duck.alive:
-            Game.display_surf.blit(self.duck.image, self.duck.rect)
-        Game.display_surf.blit(self.crosshair.image, self.crosshair.rect)
+            Game.display_surf.blit(self.crosshair.image, self.crosshair.rect)
         pygame.display.update()
 
     def on_cleanup(self):
