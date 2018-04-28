@@ -45,8 +45,8 @@ class Dog(Image):
         # TODO: różne pieski
         super().__init__(['Sprites/dog.PNG'], left=500, top=350)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
-        self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
-        self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
+        self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
+        self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
 
     def celebration(self, cel_type):
         Game.display_surf.blit(Game.background.image, (0, 0))
@@ -70,7 +70,7 @@ class Duck(Image):
         self.scale = (54, 57)
         super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=self.scale)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
-        self.velocity = 1
+        self.velocity = 1  # TODO zależne od lvl
         self.velocity_dead = 5
         self.alive = True
         self.duck_gone = False
@@ -103,8 +103,8 @@ class Duck(Image):
             self.update_dead()
 
     def update_alive(self):
-        self.rect.left += self.velocity * self.direction[0]  # TODO zależne od lvl
-        self.rect.top += self.velocity * self.direction[1]  # TODO zależne od lvl
+        self.rect.left += self.velocity * self.direction[0]
+        self.rect.top += self.velocity * self.direction[1]
         self.change_direction()
 
     def update_dead(self):
@@ -122,27 +122,21 @@ class Subround:
 
     def __init__(self):
         self._running = True
-        self.crosshair = None
         self.duck_count = 2
         self.shots_left = 3
         self.countdown = 10
-        self.duck = None
-        self.dog = None
-        self.ducks_shot = 0
-
-    def on_init(self):
         self.crosshair = Cursor()
         self.duck = Duck('janek', 1)  # TODO random
         self.dog = Dog()
-        return True
+        self.ducks_shot = 0
+        self.start_time = time.time()
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
             Game.cleanup()
         if event.type == pygame.MOUSEBUTTONUP:
             self.shots_left -= 1
-            if self.shots_left == 0 and self.duck_count > 0:
-                self.subround_end('loss')
+            self.crosshair.on_click()
             self.duck.on_click()
         if event.type == pygame.MOUSEMOTION:
             self.crosshair.update()
@@ -153,6 +147,8 @@ class Subround:
         if self.duck.duck_gone:
             self.ducks_shot += 1
             self.subround_end('win')
+        elif self.shots_left == 0 or time.time() - self.start_time > 7: # TODO variable
+            self.subround_end('loss')
 
     def on_render(self):
         Game.display_surf.blit(Game.background.image, (0, 0))
@@ -161,25 +157,17 @@ class Subround:
             Game.display_surf.blit(self.crosshair.image, self.crosshair.rect)
         pygame.display.update()
 
-    def on_cleanup(self):
-        pass
-
     def on_execute(self):
-        self._running = self.on_init()
+        self._running = True
         while self._running:
             for event in pygame.event.get():
                 self.on_event(event)
             self.on_loop()
             self.on_render()
-        self.on_cleanup()
         return self.ducks_shot
 
-    def subround_end(self, type):
-        # TODO: to będą 3 warunki, gdzieś je wrzucić
-        # if self.duck_count == 0:
-        # elif self.countdown == 0:
-        # elif self.duck_count == 0:
-        self.dog.celebration(type)
+    def subround_end(self, end_type):
+        self.dog.celebration(end_type)
         time.sleep(2)
         self._running = False
 
@@ -187,9 +175,6 @@ class Subround:
 class Round:
     ROUNDS = 2
     MIN_SUCCESS_COUNT = 0  # TODO: minimalna liczba kaczek do zastrzelenia ma rosnąć wraz z rundą
-
-    #
-    # def __init__(self):
 
     def execute(self):
         ducks_shot = 0
@@ -218,13 +203,15 @@ class Game:
         self._running = True
 
     def on_init(self):
+        pygame.mixer.pre_init(22050, -16, 2, 1024)
         pygame.init()
+        pygame.mixer.quit()
+        pygame.mixer.init(22050, -16, 2, 1024)
         pygame.display.set_caption('Dudu Hunt')
-        self.background = Image(['Sprites/background.png'])
         return True
 
-    @staticmethod
-    def cleanup():
+    @classmethod
+    def cleanup(cls):
         # TODO display game over
         # TODO go to start screen?
         pygame.quit()
