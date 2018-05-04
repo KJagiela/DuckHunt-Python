@@ -3,6 +3,7 @@ import random
 import time
 
 import pygame
+from helpers import AAfilledRoundedRect
 
 
 class Settings:
@@ -20,6 +21,27 @@ class Image(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.left = left
         self.rect.top = top
+
+
+class GameBoard(Image):
+    background = Image(['Sprites/background_cut.png'])
+    size = width, height = 599, 468
+    display_surf = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+
+    @staticmethod
+    def render():
+        GameBoard.display_surf.blit(GameBoard.background.image, (0, 0))
+        myfont = pygame.font.Font('Sprites/duckhunt.ttf', 16)
+        text = 'R = {}'.format(Game.round_count)
+        textsurface = myfont.render(text, False, (0, 255, 0), (0, 0, 0))
+        GameBoard.display_surf.blit(textsurface, (55, 384))
+        AAfilledRoundedRect(GameBoard.display_surf, (50, 410, 62, 42), 'green', )
+        AAfilledRoundedRect(GameBoard.display_surf, (51, 411, 60, 40), 'black', )
+        AAfilledRoundedRect(GameBoard.display_surf, (145, 410, 252, 42), 'green', )
+        AAfilledRoundedRect(GameBoard.display_surf, (146, 411, 250, 40), 'black', )
+        AAfilledRoundedRect(GameBoard.display_surf, (440, 410, 110, 42), 'green', )
+        AAfilledRoundedRect(GameBoard.display_surf, (441, 411, 108, 40), 'black', )
+        pygame.display.update()
 
 
 class Cursor(Image):
@@ -43,18 +65,20 @@ class Cursor(Image):
 class Dog(Image):
     def __init__(self):
         # TODO: różne pieski
-        super().__init__(['Sprites/dog.PNG'], left=500, top=350)
+        super().__init__(['Sprites/dog.PNG', 'Sprites/dog_laugh.PNG'], left=500, top=350)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
         self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
         self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
 
     def celebration(self, cel_type):
-        Game.display_surf.blit(Game.background.image, (0, 0))
+        GameBoard.display_surf.blit(GameBoard.background.image, (0, 0))
         if cel_type == 'win':
             self.dogWinSound.play()
-            Game.display_surf.blit(self.image, self.rect)
+            GameBoard.display_surf.blit(self.image, self.rect)
         elif cel_type == 'loss':
-            Game.display_surf.blit(self.image, self.rect)
+            self.image = self.images[1]
+            self.dogLoseSound.play()
+            GameBoard.display_surf.blit(self.image, self.rect)
         pygame.display.update()
 
 
@@ -68,7 +92,7 @@ class Duck(Image):
         # Point Values Based On Duck Color
         point_values = {"blue": 1000, "red": 1500, "black": 500}  # TODO zależnie od levelu się zmienia
         self.scale = (54, 57)
-        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=self.scale)
+        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=200, scale=self.scale)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
         self.velocity = 1  # TODO zależne od lvl
         self.velocity_dead = 5
@@ -118,7 +142,7 @@ class Duck(Image):
 
 
 class Subround:
-    playground = pygame.Rect(210, 0, 600, 440)
+    playground = pygame.Rect(0, 0, 599, 302)
 
     def __init__(self):
         self._running = True
@@ -133,7 +157,8 @@ class Subround:
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
-            Game.cleanup()
+            self._running = False
+            pygame.quit()
         if event.type == pygame.MOUSEBUTTONUP:
             self.shots_left -= 1
             self.crosshair.on_click()
@@ -147,14 +172,14 @@ class Subround:
         if self.duck.duck_gone:
             self.ducks_shot += 1
             self.subround_end('win')
-        elif self.shots_left == 0 or time.time() - self.start_time > 7: # TODO variable
+        elif self.shots_left <= 0 or time.time() - self.start_time > 7: # TODO variable
             self.subround_end('loss')
 
     def on_render(self):
-        Game.display_surf.blit(Game.background.image, (0, 0))
-        Game.display_surf.blit(self.duck.image, self.duck.rect)
+        GameBoard.render()
+        GameBoard.display_surf.blit(self.duck.image, self.duck.rect)
         if self.duck.alive:
-            Game.display_surf.blit(self.crosshair.image, self.crosshair.rect)
+            GameBoard.display_surf.blit(self.crosshair.image, self.crosshair.rect)
         pygame.display.update()
 
     def on_execute(self):
@@ -184,43 +209,48 @@ class Round:
         return self.end_round(ducks_shot >= self.MIN_SUCCESS_COUNT)
 
     def end_round(self, is_win):
-        pygame.font.init()
         myfont = pygame.font.SysFont('Comic Sans MS', 50)
         text = 'Round won!' if is_win else 'Round lost!'
         textsurface = myfont.render(text, False, (0, 0, 0))
-        Game.display_surf.blit(textsurface, (100, 100))
+        GameBoard.display_surf.blit(textsurface, (100, 100))
         pygame.display.update()
         time.sleep(1)
         return is_win
 
 
 class Game:
-    background = Image(['Sprites/background.png'])
-    size = width, height = 1016, 711
-    display_surf = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
-
-    def __init__(self):
-        self._running = True
+    round_count = 0
+    _running = True
 
     def on_init(self):
         pygame.mixer.pre_init(22050, -16, 2, 1024)
         pygame.init()
+        pygame.font.init()
         pygame.mixer.quit()
         pygame.mixer.init(22050, -16, 2, 1024)
         pygame.display.set_caption('Dudu Hunt')
         return True
 
-    @classmethod
-    def cleanup(cls):
+    @staticmethod
+    def cleanup():
         # TODO display game over
         # TODO go to start screen?
         pygame.quit()
+
+    def render(self):
+        pass
+        # TODO display round number
+        # TODO display shots left
+        # TODO display ducks hit + timer
+        # TODO display score
 
     def execute(self):
         if not self.on_init():
             self._running = False
 
         while self._running:
+            self.round_count += 1
+            self.render()
             game_round = Round()
             round_result = game_round.execute()
             self._running = round_result
