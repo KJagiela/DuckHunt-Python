@@ -1,7 +1,9 @@
 import os
+import pickle
 import random
 import sys
 import time
+from collections import OrderedDict
 
 import pygame
 
@@ -20,6 +22,42 @@ def wait():
                 sys.exit()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 return True
+
+
+class ScoreBoard:
+
+    def __init__(self):
+        try:
+            with open("highscores.pkl", "rb") as in_:
+                self.high_scores = pickle.load(in_)
+        except:
+            self.high_scores = [('Kasia', 1000), ('Tez Kasia', 500)]
+
+    def add_score(self, name):
+        if len(self.high_scores) < 10:
+            next_item = len(self.high_scores)
+        elif Game.score > self.high_scores[9].score:
+            next_item = 9
+        else:
+            return
+        self.high_scores[next_item] = (name, Game.score)
+        self.high_scores = list(sorted(self.high_scores, key=lambda x: x[1]))
+        with open("highscores.pkl", "wb") as out:
+            pickle.dump(self.high_scores, out)
+
+    def display(self):
+        GameBoard.display_surf.fill((0, 0, 0))
+        menu_font = pygame.font.Font('Sprites/menu.ttf', 12)
+        big_font = pygame.font.Font('Sprites/menu.ttf', 20)
+        textsurface = big_font.render('HIGH SCORES', False, (255, 255, 255), (0, 0, 0))
+        GameBoard.display_surf.blit(textsurface, (185, 20))
+        i = 50
+        for name, score in self.high_scores:
+            textsurface = menu_font.render(name, False, (255, 255, 255), (0, 0, 0))
+            GameBoard.display_surf.blit(textsurface, (135, 20 + i))
+            textsurface = menu_font.render(str(score), False, (255, 255, 255), (0, 0, 0))
+            GameBoard.display_surf.blit(textsurface, (385, 20 + i))
+            i += 30
 
 
 class Settings:
@@ -491,7 +529,7 @@ class Game:
         pygame.display.update()
         return wait()
 
-    def get_min_duck_count(self):
+    def     get_min_duck_count(self):
         if self.round_count <= 10:
             return 6
         if self.round_count <= 12:
@@ -504,6 +542,10 @@ class Game:
 
     @staticmethod
     def cleanup():
+        sc = ScoreBoard()
+        sc.display()
+        pygame.display.update()
+        wait()
         GameBoard.game_over()
         pygame.display.update()
         if wait():
