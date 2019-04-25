@@ -32,6 +32,11 @@ class Cursor(Image):
         self.rect.top = mouse_y - self.rect.size[1] / 2
 
     def on_click(self):
+<<<<<<< Updated upstream
+=======
+        # Play Gunshot Sound and add Total Sounds
+        Cursor.clicked = True
+>>>>>>> Stashed changes
         self.gunShotSound.play()
 
 
@@ -62,6 +67,7 @@ class Duck(Image):
                  'janek': 'black'
                  }
         # Point Values Based On Duck Color
+<<<<<<< Updated upstream
         point_values = {"blue": 1000, "red": 1500, "black": 500}  # TODO zależnie od levelu się zmienia
         super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=(54, 57))
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
@@ -80,6 +86,22 @@ class Duck(Image):
         if can_change_direction:
             self.direction = (random.choice([-1, 1]), random.choice([-1, 0, 1]))
             self.last_change_time = time.time()
+=======
+        point_values = {"blue": 25, "red": 50, "black": 75}
+        corner = self.image.get_at((0, 0))
+        self.image.set_colorkey(corner, pygame.constants.RLEACCEL)
+        super().__init__('Sprites/{}/duck1.png'.format(ducks[duck_type]), left=200, top=300)
+        self.image = pygame.transform.scale(self.image, (72, 76))
+        self.velocity = 1
+        self.alive = True
+
+    def update(self):
+        self.rect.left += self.velocity
+
+    def on_click(self):
+        if self.rect.collidepoint(pygame.mouse.get_pos()):
+            self.alive = False
+>>>>>>> Stashed changes
 
     def on_click(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
@@ -93,6 +115,7 @@ class Subround:
         self.background = background
         self._running = True
         self.crosshair = None
+<<<<<<< Updated upstream
         self.duck_count = 2
         self.shots_left = 3
         self.countdown = 10
@@ -100,6 +123,9 @@ class Subround:
         self.dog = None
         self.ducks_shot = 0
         self.playground = pygame.Rect(210, 0, 600, 440)
+=======
+        self.duck = None
+>>>>>>> Stashed changes
 
     def on_init(self):
         self.crosshair = Cursor()
@@ -111,6 +137,7 @@ class Subround:
         if event.type == pygame.QUIT:
             Game.cleanup()
         if event.type == pygame.MOUSEBUTTONUP:
+<<<<<<< Updated upstream
             self.shots_left -= 1
             if self.shots_left == 0 and self.duck_count > 0:
                 self.subround_end('loss')
@@ -118,6 +145,10 @@ class Subround:
             if not self.duck.alive:
                 self.ducks_shot += 1
                 self.subround_end('win')
+=======
+            self.crosshair.on_click()
+            self.duck.on_click()
+>>>>>>> Stashed changes
         if event.type == pygame.MOUSEMOTION:
             self.crosshair.update()
 
