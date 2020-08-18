@@ -3,6 +3,12 @@ import random
 import time
 
 import pygame
+from helpers import AAfilledRoundedRect
+
+
+class Settings:
+    change_time = 1
+    change_randomized = 0.2
 
 
 class Image(pygame.sprite.Sprite):
@@ -15,6 +21,27 @@ class Image(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.left = left
         self.rect.top = top
+
+
+class GameBoard(Image):
+    background = Image(['Sprites/background_cut.png'])
+    size = width, height = 599, 468
+    display_surf = pygame.display.set_mode(size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+
+    @staticmethod
+    def render():
+        GameBoard.display_surf.blit(GameBoard.background.image, (0, 0))
+        myfont = pygame.font.Font('Sprites/duckhunt.ttf', 16)
+        text = 'R = {}'.format(Game.round_count)
+        textsurface = myfont.render(text, False, (0, 255, 0), (0, 0, 0))
+        GameBoard.display_surf.blit(textsurface, (55, 384))
+        AAfilledRoundedRect(GameBoard.display_surf, (50, 410, 62, 42), 'green', )
+        AAfilledRoundedRect(GameBoard.display_surf, (51, 411, 60, 40), 'black', )
+        AAfilledRoundedRect(GameBoard.display_surf, (145, 410, 252, 42), 'green', )
+        AAfilledRoundedRect(GameBoard.display_surf, (146, 411, 250, 40), 'black', )
+        AAfilledRoundedRect(GameBoard.display_surf, (440, 410, 110, 42), 'green', )
+        AAfilledRoundedRect(GameBoard.display_surf, (441, 411, 108, 40), 'black', )
+        pygame.display.update()
 
 
 class Cursor(Image):
@@ -36,26 +63,27 @@ class Cursor(Image):
 
 
 class Dog(Image):
-    def __init__(self, subround):
+    def __init__(self):
         # TODO: różne pieski
-        super().__init__(['Sprites/dog.PNG'], left=500, top=350)
+        super().__init__(['Sprites/dog.PNG', 'Sprites/dog_laugh.PNG'], left=500, top=350)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
-        self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
-        self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
-        self.subround = subround
+        self.dogWinSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'howlovely.wav'))
+        self.dogLoseSound = pygame.mixer.Sound(os.path.join(os.getcwd(), 'Sounds', 'eve.oga'))
 
     def celebration(self, cel_type):
-        self.subround._display_surf.blit(self.subround.background.image, (0, 0))
+        GameBoard.display_surf.blit(GameBoard.background.image, (0, 0))
         if cel_type == 'win':
             self.dogWinSound.play()
-            self.subround._display_surf.blit(self.image, self.rect)
+            GameBoard.display_surf.blit(self.image, self.rect)
         elif cel_type == 'loss':
-            self.subround._display_surf.blit(self.image, self.rect)
+            self.image = self.images[1]
+            self.dogLoseSound.play()
+            GameBoard.display_surf.blit(self.image, self.rect)
         pygame.display.update()
 
 
 class Duck(Image):
-    def __init__(self, playground, duck_type, level_no):
+    def __init__(self, duck_type, level_no):
         ducks = {'ola': 'blue',
                  'korwin': 'blue',
                  'lysy': 'red',
@@ -63,23 +91,50 @@ class Duck(Image):
                  }
         # Point Values Based On Duck Color
         point_values = {"blue": 1000, "red": 1500, "black": 500}  # TODO zależnie od levelu się zmienia
-        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=300, scale=(54, 57))
+        self.scale = (54, 57)
+        super().__init__(['Sprites/{}/duck1.png'.format(ducks[duck_type])], left=250, top=200, scale=self.scale)
         self.image.set_colorkey(self.image.get_at((0, 0)), pygame.constants.RLEACCEL)
-        self.velocity = 1
+        self.velocity = 1  # TODO zależne od lvl
+        self.velocity_dead = 5
         self.alive = True
+        self.duck_gone = False
         self.direction = (1, 0)
         self.last_change_time = time.time()
-        self.playground = playground
+
+    def change_direction(self):
+        direction_x = random.choice([-1, 1])
+        direction_y = random.choice([-1, 0, 1])
+        change_time = time.time() - self.last_change_time
+        if not Subround.playground.contains(self.rect):
+            if self.rect.left <= Subround.playground.left:
+                direction_x = 1
+            elif self.rect.right >= Subround.playground.right:
+                direction_x = -1
+            if self.rect.top <= Subround.playground.top:
+                direction_y = random.choice([0, 1])
+            elif self.rect.bottom >= Subround.playground.bottom:
+                direction_y = random.choice([-1, 0])
+        elif change_time > Settings.change_time and random.random() < Settings.change_randomized:
+            self.last_change_time = time.time()
+        else:
+            return
+        self.direction = (direction_x, direction_y)
 
     def update(self):
-        self.rect.left += self.velocity * self.direction[0]  # TODO zależne od lvl
-        self.rect.top += self.velocity * self.direction[1]  # TODO zależne od lvl
-        change_time = time.time() - self.last_change_time
-        can_change_direction = (change_time > 1 and random.random() < 0.1)  # TODO nie hardkoduj tego
-        can_change_direction = can_change_direction or not self.playground.contains(self.rect)  # TODO jak jesteś przy krawędzi, to wywal ją z losowania
-        if can_change_direction:
-            self.direction = (random.choice([-1, 1]), random.choice([-1, 0, 1]))
-            self.last_change_time = time.time()
+        if self.alive:
+            self.update_alive()
+        else:
+            self.update_dead()
+
+    def update_alive(self):
+        self.rect.left += self.velocity * self.direction[0]
+        self.rect.top += self.velocity * self.direction[1]
+        self.change_direction()
+
+    def update_dead(self):
+        self.rect.top += self.velocity_dead
+        if self.rect.bottom >= Subround.playground.bottom:
+            self.duck_gone = True
 
     def on_click(self):
         if self.rect.collidepoint(pygame.mouse.get_pos()):
@@ -87,70 +142,57 @@ class Duck(Image):
 
 
 class Subround:
+    playground = pygame.Rect(0, 0, 599, 302)
 
-    def __init__(self, display, background):
-        self._display_surf = display
-        self.background = background
+    def __init__(self):
         self._running = True
-        self.crosshair = None
         self.duck_count = 2
         self.shots_left = 3
         self.countdown = 10
-        self.duck = None
-        self.dog = None
-        self.ducks_shot = 0
-        self.playground = pygame.Rect(210, 0, 600, 440)
-
-    def on_init(self):
         self.crosshair = Cursor()
-        self.duck = Duck(self.playground, 'janek', 1)  # TODO random
-        self.dog = Dog(self)
-        return True
+        self.duck = Duck('janek', 1)  # TODO random
+        self.dog = Dog()
+        self.ducks_shot = 0
+        self.start_time = time.time()
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
-            Game.cleanup()
+            self._running = False
+            pygame.quit()
         if event.type == pygame.MOUSEBUTTONUP:
             self.shots_left -= 1
-            if self.shots_left == 0 and self.duck_count > 0:
-                self.subround_end('loss')
+            self.crosshair.on_click()
             self.duck.on_click()
-            if not self.duck.alive:
-                self.ducks_shot += 1
-                self.subround_end('win')
         if event.type == pygame.MOUSEMOTION:
             self.crosshair.update()
 
     def on_loop(self):
         self.crosshair.update()
         self.duck.update()
+        if self.duck.duck_gone:
+            self.ducks_shot += 1
+            self.subround_end('win')
+        elif self.shots_left <= 0 or time.time() - self.start_time > 7: # TODO variable
+            self.subround_end('loss')
 
     def on_render(self):
-        self._display_surf.blit(self.background.image, (0, 0))
+        GameBoard.render()
+        GameBoard.display_surf.blit(self.duck.image, self.duck.rect)
         if self.duck.alive:
-            self._display_surf.blit(self.duck.image, self.duck.rect)
-        self._display_surf.blit(self.crosshair.image, self.crosshair.rect)
+            GameBoard.display_surf.blit(self.crosshair.image, self.crosshair.rect)
         pygame.display.update()
 
-    def on_cleanup(self):
-        pass
-
     def on_execute(self):
-        self._running = self.on_init()
+        self._running = True
         while self._running:
             for event in pygame.event.get():
                 self.on_event(event)
             self.on_loop()
             self.on_render()
-        self.on_cleanup()
         return self.ducks_shot
 
-    def subround_end(self, type):
-        # TODO: to będą 3 warunki, gdzieś je wrzucić
-        # if self.duck_count == 0:
-        # elif self.countdown == 0:
-        # elif self.duck_count == 0:
-        self.dog.celebration(type)
+    def subround_end(self, end_type):
+        self.dog.celebration(end_type)
         time.sleep(2)
         self._running = False
 
@@ -159,40 +201,34 @@ class Round:
     ROUNDS = 2
     MIN_SUCCESS_COUNT = 0  # TODO: minimalna liczba kaczek do zastrzelenia ma rosnąć wraz z rundą
 
-    def __init__(self, display, background):
-        self._display_surf = display
-        self.background = background
-
     def execute(self):
         ducks_shot = 0
         for i in range(self.ROUNDS):
-            subround = Subround(display=self._display_surf, background=self.background)
+            subround = Subround()
             ducks_shot += subround.on_execute()
         return self.end_round(ducks_shot >= self.MIN_SUCCESS_COUNT)
 
     def end_round(self, is_win):
-        pygame.font.init()
         myfont = pygame.font.SysFont('Comic Sans MS', 50)
         text = 'Round won!' if is_win else 'Round lost!'
         textsurface = myfont.render(text, False, (0, 0, 0))
-        self._display_surf.blit(textsurface, (100, 100))
+        GameBoard.display_surf.blit(textsurface, (100, 100))
         pygame.display.update()
         time.sleep(1)
         return is_win
 
 
 class Game:
-    def __init__(self):
-        self._running = True
-        self._display_surf = None
-        self.size = self.width, self.height = 1016, 711
-        self.background = None
+    round_count = 0
+    _running = True
 
     def on_init(self):
+        pygame.mixer.pre_init(22050, -16, 2, 1024)
         pygame.init()
-        self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+        pygame.font.init()
+        pygame.mixer.quit()
+        pygame.mixer.init(22050, -16, 2, 1024)
         pygame.display.set_caption('Dudu Hunt')
-        self.background = Image(['Sprites/background.png'])
         return True
 
     @staticmethod
@@ -201,12 +237,21 @@ class Game:
         # TODO go to start screen?
         pygame.quit()
 
+    def render(self):
+        pass
+        # TODO display round number
+        # TODO display shots left
+        # TODO display ducks hit + timer
+        # TODO display score
+
     def execute(self):
         if not self.on_init():
             self._running = False
 
         while self._running:
-            game_round = Round(display=self._display_surf, background=self.background)
+            self.round_count += 1
+            self.render()
+            game_round = Round()
             round_result = game_round.execute()
             self._running = round_result
         self.cleanup()
